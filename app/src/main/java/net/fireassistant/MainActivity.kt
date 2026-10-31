@@ -52,6 +52,17 @@ class MainActivity : Activity() {
         button(root, "Enable accessibility service (needed for unlock)") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
+        button(root, "Share token") {
+            startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND)
+                        .setType("text/plain")
+                        .putExtra(Intent.EXTRA_SUBJECT, "Fire Assistant API token")
+                        .putExtra(Intent.EXTRA_TEXT, Prefs.token(this)),
+                    "Share token",
+                ),
+            )
+        }
         button(root, "Regenerate token") {
             Prefs.regenerateToken(this)
             ApiService.stop(this)
