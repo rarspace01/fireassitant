@@ -77,6 +77,10 @@ Every push to `main` (except docs-only changes) runs `.github/workflows/release.
 
 To sign with your own key, add these repository secrets: `KEYSTORE_BASE64` (`base64 -w0 release.keystore`), `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Without them the APK is signed with the debug key, which installs fine but changes if the CI runner's debug key changes, so updates may require uninstalling first. Use your own key for anything long-lived.
 
+## Updating
+
+Tap **Check for updates** in the app. If a newer GitHub release exists, **Download and install** fetches the APK and hands it to Android's installer; the token and permissions are kept. The first time, Android asks you to allow installs from Fire Assistant. This only works between builds signed with the same key (CI releases); a locally built debug APK must be uninstalled first.
+
 ## Notes
 
 - `minSdk 22` covers Fire OS 5 and up (API 22 / 25 / 28 / 30 for Fire OS 5 / 6 / 7 / 8). No Google Play services are used.
