@@ -9,7 +9,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 /**
  * Swipes up on the lock screen, and taps "Install" in the system package installer while an
- * update started by /api/update is pending (see [armInstall]). Fire OS blocks keyguard dismissal for third-party
+ * update started by /api/update or the app's update button is pending (see [armInstall]). Fire OS blocks keyguard dismissal for third-party
  * apps, so a swipe is the only way past the "Special Offers" (ad-supported) lock screen.
  */
 class GestureService : AccessibilityService() {
