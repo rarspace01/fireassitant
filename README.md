@@ -73,7 +73,7 @@ action:
 
 ## Releases
 
-Every push to `main` (except docs-only changes) runs `.github/workflows/release.yml`, which builds the release APK and publishes it as a GitHub release tagged `v1.0.<run number>`. Pull requests run a debug build and lint (`ci.yml`). Dependabot keeps Gradle dependencies and the workflow actions up to date.
+Every push to `main` (except docs-only changes) runs `.github/workflows/release.yml`, which builds the release APK and publishes it as a GitHub release tagged `v1.0.<run number>`. Pull requests run a debug build and lint (`ci.yml`). Dependabot checks daily to keep Gradle dependencies and the workflow actions up to date.
 
 To sign with your own key, add these repository secrets: `KEYSTORE_BASE64` (`base64 -w0 release.keystore`), `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Without them the APK is signed with the debug key, which installs fine but changes if the CI runner's debug key changes, so updates may require uninstalling first. Use your own key for anything long-lived.
 
