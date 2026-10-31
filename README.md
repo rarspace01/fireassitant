@@ -63,10 +63,10 @@ Then call them from automations or scripts, e.g. wake, unlock and show a dashboa
 
 ```yaml
 action:
-  - service: rest_command.fire_tablet_wake
-  - service: rest_command.fire_tablet_unlock
+  - action: rest_command.fire_tablet_wake
+  - action: rest_command.fire_tablet_unlock
   - delay: "00:00:02"
-  - service: rest_command.fire_tablet_open_dashboard
+  - action: rest_command.fire_tablet_open_dashboard
     data:
       path: lovelace/kitchen
 ```
