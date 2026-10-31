@@ -134,6 +134,9 @@ class MainActivity : Activity() {
                 ui.post {
                     updateButton.isEnabled = true
                     setUpdateStatus("${release.tag} downloaded")
+                    // Let the accessibility service tap Install, same as /api/update; without it
+                    // the installer simply waits for a manual tap.
+                    GestureService.armInstall()
                     Updater.install(this, apk)
                 }
             }
