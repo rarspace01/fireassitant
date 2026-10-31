@@ -39,11 +39,11 @@ class MainActivity : Activity() {
             )
         }
         overlayStatus = text(root, 16f)
-        button(root, "Allow display over other apps (open apps / unlock)") {
+        button(root, "Allow display over other apps (open HA)") {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
         a11yStatus = text(root, 16f)
-        button(root, "Enable accessibility service (unlock swipe fallback)") {
+        button(root, "Enable accessibility service (needed for unlock)") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         button(root, "Regenerate token") {

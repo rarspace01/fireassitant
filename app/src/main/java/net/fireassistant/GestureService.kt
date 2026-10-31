@@ -7,8 +7,8 @@ import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Only used to swipe up on the lock screen. Fire OS "Special Offers" (ad-supported) lock
- * screens don't always honour KeyguardManager.requestDismissKeyguard, so this is the fallback.
+ * Only used to swipe up on the lock screen. Fire OS blocks keyguard dismissal for third-party
+ * apps, so a swipe is the only way past the "Special Offers" (ad-supported) lock screen.
  */
 class GestureService : AccessibilityService() {
 

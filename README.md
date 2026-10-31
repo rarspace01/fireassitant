@@ -21,8 +21,8 @@ Responses are JSON: `{"ok": true, "message": "..."}`.
 1. Install the APK (`./gradlew assembleDebug` -> `app/build/outputs/apk/debug/app-debug.apk`, or `adb install`).
 2. Open the app and grant the three permissions it lists:
    - **Device admin**: only the force-lock policy; needed for `/api/sleep`.
-   - **Display over other apps**: needed to start activities from the background on Android 10+ (Fire OS 8).
-   - **Accessibility service**: fallback swipe for `/api/unlock`.
+   - **Display over other apps**: needed to open Home Assistant from the background on Android 10+ (Fire OS 8).
+   - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly).
 3. Disable battery optimisation for the app. The server restarts on boot.
 
 ## Notes

@@ -1,11 +1,14 @@
 package net.fireassistant
 
+import android.app.KeyguardManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 
@@ -36,13 +39,21 @@ class Actions(context: Context) {
         return ActionResult(true, "screen off")
     }
 
+    /**
+     * Fire OS blocks apps from dismissing the keyguard (needs an Amazon-only permission), so
+     * the only route is an accessibility swipe once the screen is on. Retried once because the
+     * lock screen can take a moment to become interactive.
+     */
     fun unlock(): ActionResult {
-        if (!canStartFromBackground()) {
-            return ActionResult(false, "'Display over other apps' permission not granted; open the app and grant it", 409)
+        if (!GestureService.isRunning) {
+            return ActionResult(false, "accessibility service not enabled; open the app and enable it", 409)
         }
         wake()
-        ctx.startActivity(Intent(ctx, UnlockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        return ActionResult(true, "unlock requested" + if (GestureService.isRunning) "" else " (accessibility swipe fallback not enabled)")
+        val keyguard = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val handler = Handler(Looper.getMainLooper())
+        handler.postDelayed({ GestureService.swipeUnlock() }, 500)
+        handler.postDelayed({ if (keyguard.isKeyguardLocked) GestureService.swipeUnlock() }, 1_500)
+        return ActionResult(true, "unlock requested")
     }
 
     fun openHomeAssistant(): ActionResult {
