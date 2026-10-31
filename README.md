@@ -71,6 +71,12 @@ action:
       path: lovelace/kitchen
 ```
 
+## Releases
+
+Pushing a tag like `v1.0.0` runs `.github/workflows/release.yml`, which builds the release APK and publishes it as a GitHub release. Pushes and PRs to `main` run a debug build and lint (`ci.yml`). Dependabot keeps Gradle dependencies and the workflow actions up to date.
+
+To sign with your own key, add these repository secrets: `KEYSTORE_BASE64` (`base64 -w0 release.keystore`), `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Without them the APK is signed with the debug key, which installs fine but changes if the CI runner's debug key changes, so updates may require uninstalling first. Use your own key for anything long-lived.
+
 ## Notes
 
 - `minSdk 22` covers Fire OS 5 and up (API 22 / 25 / 28 / 30 for Fire OS 5 / 6 / 7 / 8). No Google Play services are used.
