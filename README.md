@@ -25,6 +25,52 @@ Responses are JSON: `{"ok": true, "message": "..."}`.
    - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly).
 3. Disable battery optimisation for the app. The server restarts on boot.
 
+## Home Assistant example
+
+In `secrets.yaml`:
+
+```yaml
+fire_tablet_auth: "Bearer <token>"
+```
+
+In `configuration.yaml` (replace the IP with your tablet's; use `lovelace/0` or any dashboard path):
+
+```yaml
+rest_command:
+  fire_tablet_wake:
+    url: "http://192.168.1.141:8765/api/wake"
+    headers:
+      Authorization: !secret fire_tablet_auth
+  fire_tablet_sleep:
+    url: "http://192.168.1.141:8765/api/sleep"
+    headers:
+      Authorization: !secret fire_tablet_auth
+  fire_tablet_unlock:
+    url: "http://192.168.1.141:8765/api/unlock"
+    headers:
+      Authorization: !secret fire_tablet_auth
+  fire_tablet_open_ha:
+    url: "http://192.168.1.141:8765/api/ha"
+    headers:
+      Authorization: !secret fire_tablet_auth
+  fire_tablet_open_dashboard:
+    url: "http://192.168.1.141:8765/api/ha/dashboard?path={{ path }}"
+    headers:
+      Authorization: !secret fire_tablet_auth
+```
+
+Then call them from automations or scripts, e.g. wake, unlock and show a dashboard when someone arrives:
+
+```yaml
+action:
+  - service: rest_command.fire_tablet_wake
+  - service: rest_command.fire_tablet_unlock
+  - delay: "00:00:02"
+  - service: rest_command.fire_tablet_open_dashboard
+    data:
+      path: lovelace/kitchen
+```
+
 ## Notes
 
 - `minSdk 22` covers Fire OS 5 and up (API 22 / 25 / 28 / 30 for Fire OS 5 / 6 / 7 / 8). No Google Play services are used.
