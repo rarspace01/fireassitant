@@ -83,6 +83,6 @@ Tap **Check for updates** in the app. If a newer GitHub release exists, **Downlo
 
 ## Notes
 
-- `minSdk 22` covers Fire OS 5 and up (API 22 / 25 / 28 / 30 for Fire OS 5 / 6 / 7 / 8). No Google Play services are used.
+- `minSdk 23` covers Fire OS 6 and up (API 25 / 28 / 30 for Fire OS 6 / 7 / 8). Fire OS 5 tablets (2015-2017, API 22) are not supported. No Google Play services are used.
 - Unlock only works with a swipe lock screen (the "Special Offers" ads one). A PIN/password cannot be bypassed.
 - The server speaks plain HTTP; keep it on a trusted LAN.

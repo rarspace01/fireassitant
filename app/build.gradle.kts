@@ -4,13 +4,13 @@ plugins {
 
 android {
     namespace = "net.fireassistant"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "net.fireassistant"
-        // Fire OS 5 (Fire 7 2015-2017, HD 8 2015-2016, HD 10 2015/2017) is API 22.
-        // Fire OS 6 = API 25, Fire OS 7 = API 28, Fire OS 8 = API 30.
-        minSdk = 22
+        // Fire OS 6 = API 25, Fire OS 7 = API 28, Fire OS 8 = API 30. Fire OS 5 (API 22,
+        // 2015-2017 tablets) is dropped: androidx.core 1.19 needs API 23.
+        minSdk = 23
         // Fire OS tops out at Android 11. Targeting 30 avoids the Android 13/14
         // notification-permission and foreground-service-type requirements.
         targetSdk = 30
@@ -51,5 +51,5 @@ android {
 
 dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
-    implementation("androidx.core:core:1.13.1")
+    implementation("androidx.core:core:1.19.1")
 }
