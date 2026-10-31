@@ -8,6 +8,8 @@ import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.format.Formatter
 import android.view.View
@@ -22,6 +24,10 @@ class MainActivity : Activity() {
     private lateinit var adminStatus: TextView
     private lateinit var overlayStatus: TextView
     private lateinit var a11yStatus: TextView
+    private lateinit var updateStatus: TextView
+    private lateinit var updateButton: Button
+    private val ui = Handler(Looper.getMainLooper())
+    private var pending: Release? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +58,9 @@ class MainActivity : Activity() {
             ApiService.start(this)
             refresh()
         }
+        updateStatus = text(root, 16f)
+        updateStatus.text = "\nVersion ${packageManager.getPackageInfo(packageName, 0).versionName}"
+        updateButton = button(root, "Check for updates") { onUpdateClicked() }
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
@@ -81,15 +90,72 @@ class MainActivity : Activity() {
         a11yStatus.text = status("Accessibility service", GestureService.isRunning)
     }
 
+    private fun onUpdateClicked() {
+        val release = pending
+        updateButton.isEnabled = false
+        if (release == null) {
+            setUpdateStatus("Checking...")
+            background {
+                val latest = Updater.latest()
+                ui.post {
+                    updateButton.isEnabled = true
+                    when {
+                        latest == null -> setUpdateStatus("No release found")
+                        latest.build > Updater.installedBuild(this) -> {
+                            pending = latest
+                            setUpdateStatus("${latest.tag} available")
+                            updateButton.text = "Download and install ${latest.tag}"
+                        }
+                        else -> setUpdateStatus("Up to date (${latest.tag})")
+                    }
+                }
+            }
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+                updateButton.isEnabled = true
+                setUpdateStatus("Allow installing from this app, then tap again")
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                return
+            }
+            setUpdateStatus("Downloading ${release.tag}...")
+            background {
+                val apk = Updater.download(this, release)
+                ui.post {
+                    updateButton.isEnabled = true
+                    setUpdateStatus("${release.tag} downloaded")
+                    Updater.install(this, apk)
+                }
+            }
+        }
+    }
+
+    /** Runs [block] on a worker thread; failures show up in the update status line. */
+    private fun background(block: () -> Unit) {
+        Thread {
+            try {
+                block()
+            } catch (e: Exception) {
+                ui.post {
+                    updateButton.isEnabled = true
+                    setUpdateStatus("Update failed: ${e.message}")
+                }
+            }
+        }.start()
+    }
+
+    private fun setUpdateStatus(msg: String) {
+        updateStatus.text = "\nVersion ${packageManager.getPackageInfo(packageName, 0).versionName}\n$msg"
+    }
+
     private fun status(name: String, on: Boolean) = "\n$name: ${if (on) "OK" else "NOT GRANTED"}"
 
     private fun text(parent: LinearLayout, size: Float) =
         TextView(this).apply { textSize = size; parent.addView(this) }
 
-    private fun button(parent: LinearLayout, label: String, onClick: () -> Unit) {
-        parent.addView(Button(this).apply {
+    private fun button(parent: LinearLayout, label: String, onClick: () -> Unit) =
+        Button(this).apply {
             text = label
             setOnClickListener { _: View -> onClick() }
-        })
-    }
+            parent.addView(this)
+        }
 }
