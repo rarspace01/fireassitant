@@ -9,6 +9,7 @@ import java.security.MessageDigest
  *   /api/wake
  *   /api/sleep
  *   /api/unlock
+ *   /api/update
  *   /api/ha
  *   /api/ha/dashboard?path=lovelace/kitchen
  */
@@ -28,6 +29,7 @@ class ApiServer(
             "/api/wake" -> actions.wake()
             "/api/sleep" -> actions.sleep()
             "/api/unlock" -> actions.unlock()
+            "/api/update" -> actions.update()
             "/api/ha" -> actions.openHomeAssistant()
             "/api/ha/dashboard" -> actions.openDashboard(session.parameters["path"]?.firstOrNull().orEmpty())
             else -> ActionResult(false, "not found", 404)

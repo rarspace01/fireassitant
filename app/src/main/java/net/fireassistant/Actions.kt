@@ -11,6 +11,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ActionResult(val ok: Boolean, val message: String, val httpStatus: Int = if (ok) 200 else 500)
 
@@ -51,9 +53,52 @@ class Actions(context: Context) {
         wake()
         val keyguard = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed({ GestureService.swipeUnlock() }, 500)
-        handler.postDelayed({ if (keyguard.isKeyguardLocked) GestureService.swipeUnlock() }, 1_500)
+        // Give the lock screen time to become interactive, and only swipe while it is showing.
+        handler.postDelayed({ if (keyguard.isKeyguardLocked) GestureService.swipeUnlock() }, 1_000)
+        handler.postDelayed({ if (keyguard.isKeyguardLocked) GestureService.swipeUnlock() }, 2_500)
         return ActionResult(true, "unlock requested")
+    }
+
+    /**
+     * Installs the newest GitHub release without any tapping: unlocks the screen, downloads the APK,
+     * opens the system installer and lets [GestureService] confirm it. Returns before the install
+     * starts because the update kills this process.
+     */
+    fun update(): ActionResult {
+        if (!GestureService.isRunning) {
+            return ActionResult(false, "accessibility service not enabled; open the app and enable it", 409)
+        }
+        if (!canStartFromBackground()) {
+            return ActionResult(false, "'Display over other apps' permission not granted; open the app and grant it", 409)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !ctx.packageManager.canRequestPackageInstalls()) {
+            return ActionResult(false, "installing from this app is not allowed; tap 'Check for updates' in the app once", 409)
+        }
+        val latest = try {
+            Updater.latest()
+        } catch (e: Exception) {
+            return ActionResult(false, "update check failed: ${e.message}", 502)
+        } ?: return ActionResult(false, "no release found", 404)
+        if (latest.build <= Updater.installedBuild(ctx)) return ActionResult(true, "up to date (${latest.tag})")
+        if (!updating.compareAndSet(false, true)) return ActionResult(true, "update already in progress")
+
+        Thread {
+            try {
+                unlock()
+                val apk = Updater.download(ctx, latest)
+                // Open the installer only once the lock screen is gone, so the swipes can't hit its dialog.
+                val keyguard = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                val deadline = System.currentTimeMillis() + 10_000
+                while (keyguard.isKeyguardLocked && System.currentTimeMillis() < deadline) Thread.sleep(250)
+                GestureService.armInstall()
+                Updater.install(ctx, apk)
+            } catch (e: Exception) {
+                Log.e(TAG, "update failed", e)
+            } finally {
+                updating.set(false)
+            }
+        }.start()
+        return ActionResult(true, "updating to ${latest.tag}")
     }
 
     fun openHomeAssistant(): ActionResult {
@@ -102,6 +147,9 @@ class Actions(context: Context) {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || Settings.canDrawOverlays(ctx)
 
     companion object {
+        private const val TAG = "FireAssistant"
+        private val updating = AtomicBoolean(false)
+
         val HA_PACKAGES = listOf(
             "io.homeassistant.companion.android",
             "io.homeassistant.companion.android.minimal",

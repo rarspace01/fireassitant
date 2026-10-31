@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fire Assistant</string>
-    <string name="accessibility_description">Lets Fire Assistant swipe the lock screen away when you call the /api/unlock endpoint. It does not read screen content.</string>
+    <string name="accessibility_description">Lets Fire Assistant swipe the lock screen away for /api/unlock and tap Install in the system installer for /api/update. It only sees the system package installer, no other apps.</string>
 </resources>

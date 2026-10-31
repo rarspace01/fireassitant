@@ -5,9 +5,11 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 
 /**
- * Only used to swipe up on the lock screen. Fire OS blocks keyguard dismissal for third-party
+ * Swipes up on the lock screen, and taps "Install" in the system package installer while an
+ * update started by /api/update is pending (see [armInstall]). Fire OS blocks keyguard dismissal for third-party
  * apps, so a swipe is the only way past the "Special Offers" (ad-supported) lock screen.
  */
 class GestureService : AccessibilityService() {
@@ -21,7 +23,17 @@ class GestureService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (System.currentTimeMillis() > installArmedUntil) return
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() !in INSTALLER_PACKAGES) return
+        val button = INSTALL_BUTTON_IDS.firstNotNullOfOrNull { id ->
+            root.findAccessibilityNodeInfosByViewId(id).firstOrNull { it.isClickable }
+        } ?: root.findAccessibilityNodeInfosByText("Install").firstOrNull { it.isClickable && it.isEnabled }
+        if (button != null && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            installArmedUntil = 0
+        }
+    }
 
     override fun onInterrupt() = Unit
 
@@ -30,8 +42,10 @@ class GestureService : AccessibilityService() {
         val m = resources.displayMetrics
         val x = m.widthPixels / 2f
         val path = Path().apply {
-            moveTo(x, m.heightPixels * 0.85f)
-            lineTo(x, m.heightPixels * 0.15f)
+            // Start at the very bottom edge, below any lock-screen ad button: a swipe that starts
+            // on an ad can register as a tap and open an Appstore page.
+            moveTo(x, m.heightPixels * 0.97f)
+            lineTo(x, m.heightPixels * 0.30f)
         }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
@@ -45,6 +59,21 @@ class GestureService : AccessibilityService() {
             private set
 
         val isRunning get() = instance != null
+
+        private val INSTALLER_PACKAGES = setOf("com.android.packageinstaller", "com.google.android.packageinstaller")
+        private val INSTALL_BUTTON_IDS = listOf(
+            "com.android.packageinstaller:id/ok_button",
+            "com.google.android.packageinstaller:id/ok_button",
+            "android:id/button1",
+        )
+
+        @Volatile
+        private var installArmedUntil = 0L
+
+        /** Allow the next installer confirmation dialog (within 3 minutes) to be tapped automatically. */
+        fun armInstall() {
+            installArmedUntil = System.currentTimeMillis() + 3 * 60_000
+        }
 
         fun swipeUnlock(): Boolean = instance?.swipeUp() ?: false
     }

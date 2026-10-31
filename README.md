@@ -11,6 +11,7 @@ Port `8765`. GET or POST. Authenticate with `Authorization: Bearer <token>` or `
 | `/api/wake` | Turn the screen on |
 | `/api/sleep` | Turn the screen off (locks the device) |
 | `/api/unlock` | Wake and swipe away the (ad-supported) lock screen |
+| `/api/update` | Install the newest GitHub release without any tapping (unlocks the screen, downloads the APK, confirms the installer) |
 | `/api/ha` | Open the Home Assistant companion app |
 | `/api/ha/dashboard?path=lovelace/kitchen` | Open the companion app on a dashboard (`homeassistant://navigate/<path>`) |
 
@@ -49,6 +50,10 @@ rest_command:
     url: "http://192.168.1.141:8765/api/unlock"
     headers:
       Authorization: !secret fire_tablet_auth
+  fire_tablet_update:
+    url: "http://192.168.1.141:8765/api/update"
+    headers:
+      Authorization: !secret fire_tablet_auth
   fire_tablet_open_ha:
     url: "http://192.168.1.141:8765/api/ha"
     headers:
@@ -80,6 +85,8 @@ To sign with your own key, add these repository secrets: `KEYSTORE_BASE64` (`bas
 ## Updating
 
 Tap **Check for updates** in the app. If a newer GitHub release exists, **Download and install** fetches the APK and hands it to Android's installer; the token and permissions are kept. The first time, Android asks you to allow installs from Fire Assistant. This only works between builds signed with the same key (CI releases); a locally built debug APK must be uninstalled first.
+
+`/api/update` needs the accessibility service and "Display over other apps", and Android's "install unknown apps" permission for Fire Assistant (tap **Check for updates** once, or `adb shell appops set net.fireassistant REQUEST_INSTALL_PACKAGES allow`). It replies `updating to vX` or `up to date` straight away; the install finishes about 20 seconds later and the API restarts by itself. The accessibility service only sees the system package installer and only taps Install within 3 minutes of an `/api/update` call.
 
 ## Notes
 
