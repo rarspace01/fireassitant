@@ -8,14 +8,16 @@ Port `8765`. GET or POST. Authenticate with `Authorization: Bearer <token>` or `
 
 | Endpoint | Action |
 |---|---|
-| `/api/wake` | Turn the screen on |
+| `/api/wake` | Turn the screen on (no-op if already on) |
 | `/api/sleep` | Turn the screen off (locks the device) |
-| `/api/unlock` | Wake and swipe away the (ad-supported) lock screen |
+| `/api/unlock` | Wake and swipe away the (ad-supported) lock screen (no-op if already unlocked) |
 | `/api/update` | Install the newest GitHub release without any tapping (unlocks the screen, downloads the APK, confirms the installer) |
-| `/api/ha` | Open the Home Assistant companion app |
-| `/api/ha/dashboard?path=lovelace/kitchen` | Open the companion app on a dashboard (`homeassistant://navigate/<path>`) |
+| `/api/ha` | Open the Home Assistant companion app (no-op if already in front) |
+| `/api/ha/dashboard?path=lovelace/kitchen` | Show a dashboard, doing only what is missing: wakes the screen, unlocks, and navigates (`homeassistant://navigate/<path>`) unless Home Assistant is already showing that dashboard. Home Assistant doesn't need to be open first. |
 
-Responses are JSON: `{"ok": true, "message": "..."}`.
+Responses are JSON: `{"ok": true, "message": "..."}`. The message says what was done, e.g. `screen woken, unlocked, opened dashboard lovelace/kitchen` or `dashboard lovelace/kitchen already shown`.
+
+To see which dashboard is showing, the accessibility service reads the URL of Home Assistant's page. If the WebView doesn't expose it, it remembers the last dashboard opened through the API until someone taps inside Home Assistant. Use the full path as it appears in the URL (`lovelace/0`, not `lovelace`), otherwise it never matches and the dashboard is reopened each time.
 
 ## Setup on the tablet
 
@@ -23,7 +25,7 @@ Responses are JSON: `{"ok": true, "message": "..."}`.
 2. Open the app and grant the three permissions it lists:
    - **Device admin**: only the force-lock policy; needed for `/api/sleep`.
    - **Display over other apps**: needed to open Home Assistant from the background on Android 10+ (Fire OS 8).
-   - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly).
+   - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly), and checks which Home Assistant dashboard is in front so `/api/ha` and `/api/ha/dashboard` skip what is already done.
 3. Disable battery optimisation for the app. The server restarts on boot.
 
 ## Home Assistant example
@@ -64,13 +66,10 @@ rest_command:
       Authorization: !secret fire_tablet_auth
 ```
 
-Then call them from automations or scripts, e.g. wake, unlock and show a dashboard when someone arrives:
+Then call them from automations or scripts, e.g. show a dashboard when someone arrives. One call wakes, unlocks and navigates as needed, and leaves the tablet alone if the dashboard is already on screen:
 
 ```yaml
 action:
-  - action: rest_command.fire_tablet_wake
-  - action: rest_command.fire_tablet_unlock
-  - delay: "00:00:02"
   - action: rest_command.fire_tablet_open_dashboard
     data:
       path: lovelace/kitchen
@@ -86,7 +85,7 @@ To sign with your own key, add these repository secrets: `KEYSTORE_BASE64` (`bas
 
 Tap **Check for updates** in the app. If a newer GitHub release exists, **Download and install** fetches the APK and hands it to Android's installer; the token and permissions are kept. The first time, Android asks you to allow installs from Fire Assistant. This only works between builds signed with the same key (CI releases); a locally built debug APK must be uninstalled first.
 
-`/api/update` needs the accessibility service and "Display over other apps", and Android's "install unknown apps" permission for Fire Assistant (tap **Check for updates** once, or `adb shell appops set net.fireassistant REQUEST_INSTALL_PACKAGES allow`). It replies `updating to vX` or `up to date` straight away; the install finishes about 20 seconds later and the API restarts by itself. The accessibility service only sees the system package installer and only taps Install within 3 minutes of an `/api/update` call or a tap on **Download and install** in the app.
+`/api/update` needs the accessibility service and "Display over other apps", and Android's "install unknown apps" permission for Fire Assistant (tap **Check for updates** once, or `adb shell appops set net.fireassistant REQUEST_INSTALL_PACKAGES allow`). It replies `updating to vX` or `up to date` straight away; the install finishes about 20 seconds later and the API restarts by itself. The accessibility service only sees the system package installer and the Home Assistant app, and only taps Install within 3 minutes of an `/api/update` call or a tap on **Download and install** in the app.
 
 ## Notes
 

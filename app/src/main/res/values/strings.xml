@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fire Assistant</string>
-    <string name="accessibility_description">Lets Fire Assistant swipe the lock screen away for /api/unlock and tap Install in the system installer for updates. It only sees the system package installer, no other apps.</string>
+    <string name="accessibility_description">Lets Fire Assistant swipe the lock screen away for /api/unlock and tap Install in the system installer for updates, and checks which Home Assistant dashboard is showing so it is not reloaded needlessly. It only sees the system package installer and the Home Assistant app, no other apps.</string>
 </resources>

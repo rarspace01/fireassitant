@@ -19,8 +19,15 @@ class ActionResult(val ok: Boolean, val message: String, val httpStatus: Int = i
 class Actions(context: Context) {
     private val ctx = context.applicationContext
 
+    private val power get() = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+    private val keyguard get() = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+
+    private fun isScreenOn() = power.isInteractive
+    private fun isUnlocked() = isScreenOn() && !keyguard.isKeyguardLocked
+
     fun wake(): ActionResult {
-        val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (isScreenOn()) return ActionResult(true, "screen already on")
+        val pm = power
         @Suppress("DEPRECATION")
         val lock = pm.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
@@ -50,8 +57,8 @@ class Actions(context: Context) {
         if (!GestureService.isRunning) {
             return ActionResult(false, "accessibility service not enabled; open the app and enable it", 409)
         }
+        if (isUnlocked()) return ActionResult(true, "already unlocked")
         wake()
-        val keyguard = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val handler = Handler(Looper.getMainLooper())
         // Give the lock screen time to become interactive, and only swipe while it is showing.
         handler.postDelayed({ if (keyguard.isKeyguardLocked) GestureService.swipeUnlock() }, 1_000)
@@ -87,9 +94,7 @@ class Actions(context: Context) {
                 unlock()
                 val apk = Updater.download(ctx, latest)
                 // Open the installer only once the lock screen is gone, so the swipes can't hit its dialog.
-                val keyguard = ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-                val deadline = System.currentTimeMillis() + 10_000
-                while (keyguard.isKeyguardLocked && System.currentTimeMillis() < deadline) Thread.sleep(250)
+                waitUntilUnlocked(10_000)
                 GestureService.armInstall()
                 Updater.install(ctx, apk)
             } catch (e: Exception) {
@@ -103,20 +108,58 @@ class Actions(context: Context) {
 
     fun openHomeAssistant(): ActionResult {
         val pkg = haPackage() ?: return notInstalled()
+        if (isHomeAssistantInFront()) return ActionResult(true, "Home Assistant already open")
         val intent = ctx.packageManager.getLaunchIntentForPackage(pkg)
             ?: return ActionResult(false, "cannot launch $pkg", 404)
         return start(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), "opened Home Assistant")
     }
 
-    /** [path] is a dashboard path as in the HA URL, e.g. `lovelace/kitchen` or `dashboard-tablet/0`. */
+    /**
+     * Shows a dashboard, doing only the steps still missing: wakes the screen if it is off, swipes
+     * the lock screen away if it is showing, and navigates only if Home Assistant isn't already in
+     * front on that dashboard (the deep link opens Home Assistant if needed). Skipping the
+     * navigation avoids reloading a dashboard that is already on screen.
+     *
+     * [path] is a dashboard path as in the HA URL, e.g. `lovelace/kitchen` or `dashboard-tablet/0`.
+     */
     fun openDashboard(path: String): ActionResult {
         val clean = path.trim().trim('/')
         if (clean.isEmpty()) return ActionResult(false, "missing 'path' parameter", 400)
         val pkg = haPackage() ?: return notInstalled()
+
+        val done = mutableListOf<String>()
+        if (!isScreenOn()) {
+            wake()
+            done += "screen woken"
+        }
+        if (!isUnlocked() && GestureService.isRunning) {
+            // Wait for the swipe so we can see what is behind the lock screen; if it doesn't
+            // work out, navigate anyway and the dashboard is there once the tablet is unlocked.
+            unlock()
+            if (waitUntilUnlocked(5_000)) done += "unlocked"
+        }
+
+        if (isHomeAssistantInFront() && GestureService.currentDashboard() == clean) {
+            return ActionResult(true, (done + "dashboard $clean already shown").joinToString(", "))
+        }
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("homeassistant://navigate/$clean"))
             .setPackage(pkg)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return start(intent, "opened dashboard $clean")
+        val result = start(intent, "opened dashboard $clean")
+        if (!result.ok) return result
+        GestureService.openedDashboard = clean
+        return ActionResult(true, (done + result.message).joinToString(", "))
+    }
+
+    /** Only meaningful when unlocked: behind the lock screen the front app can't be seen. */
+    private fun isHomeAssistantInFront() =
+        isUnlocked() && GestureService.foregroundPackage() in HA_PACKAGES
+
+    /** Polls the lock screen; true once it is gone and the screen is on. */
+    private fun waitUntilUnlocked(timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (!isUnlocked() && System.currentTimeMillis() < deadline) Thread.sleep(250)
+        return isUnlocked()
     }
 
     private fun start(intent: Intent, okMessage: String): ActionResult {
