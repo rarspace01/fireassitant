@@ -3,6 +3,7 @@ package net.fireassistant
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -46,7 +47,20 @@ class ApiService : Service() {
             .setContentText("REST API listening on port ${Prefs.PORT}")
             .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
             .setOngoing(true)
+            .setContentIntent(openAppIntent())
             .build()
+    }
+
+    /** Opens the app like the launcher icon does, bringing an existing task to the front. */
+    private fun openAppIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        return PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
     }
 
     companion object {
