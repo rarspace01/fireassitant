@@ -27,6 +27,19 @@ To see which dashboard is showing, the accessibility service reads the URL of Ho
    - **Display over other apps**: needed to open Home Assistant from the background on Android 10+ (Fire OS 8).
    - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly), and checks which Home Assistant dashboard is in front so `/api/ha` and `/api/ha/dashboard` skip what is already done.
 3. Disable battery optimisation for the app. The server restarts on boot.
+4. Optional: hide the lock screen ads (see below).
+
+## Lock screen ads
+
+The swipe in `/api/unlock` gets past the "Special Offers" lock screen, but the ad has already been drawn by then. To keep ads off the lock screen, grant one extra permission from a PC with ADB (USB debugging on):
+
+```sh
+adb shell pm grant net.fireassistant android.permission.WRITE_SECURE_SETTINGS
+```
+
+The app then sets the `LOCKSCREEN_AD_ENABLED` setting to `0` every time the screen turns off, and when the service starts. It writes the setting in both the global and secure tables. Fire OS uses this setting to decide whether the lock screen shows an ad, and Amazon turns it back on, so it is reset each time before the lock screen comes back. This is the method Fire Toolbox uses on Fire OS 8, with its "[FTB] Lockscreen Ads Remover" Automate flow. The older method, disabling the Special Offers app with `pm disable-user com.amazon.kindle.kso`, is unreliable on restricted Fire OS 8 firmware (8.3.1.9+), which blocks changes to protected Amazon packages.
+
+The app shows whether the permission is granted and the current value of the setting. The lock screen itself stays (Fire OS always shows it on wake), so `/api/unlock` still swipes it away. Ads already downloaded may show once more before the first screen-off.
 
 ## Home Assistant example
 

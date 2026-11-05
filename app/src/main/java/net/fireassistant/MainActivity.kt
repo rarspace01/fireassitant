@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var adminStatus: TextView
     private lateinit var overlayStatus: TextView
     private lateinit var a11yStatus: TextView
+    private lateinit var adsStatus: TextView
     private lateinit var updateStatus: TextView
     private lateinit var updateButton: Button
     private val ui = Handler(Looper.getMainLooper())
@@ -52,6 +53,7 @@ class MainActivity : Activity() {
         button(root, "Enable accessibility service (needed for unlock)") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
+        adsStatus = text(root, 16f)
         button(root, "Share token") {
             startActivity(
                 Intent.createChooser(
@@ -99,6 +101,12 @@ class MainActivity : Activity() {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this),
         )
         a11yStatus.text = status("Accessibility service", GestureService.isRunning)
+        adsStatus.text = if (LockscreenAds.canBlock(this)) {
+            LockscreenAds.block(this)
+            "\nLock screen ad blocking (optional): OK (${LockscreenAds.state(this)})"
+        } else {
+            "\nLock screen ad blocking (optional): NOT GRANTED\nTo enable, run from a PC:\n${LockscreenAds.GRANT_COMMAND}"
+        }
     }
 
     private fun onUpdateClicked() {
