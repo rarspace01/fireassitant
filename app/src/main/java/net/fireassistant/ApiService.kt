@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -12,6 +13,16 @@ import android.os.IBinder
 
 class ApiService : Service() {
     private var server: ApiServer? = null
+    private var screenOff: BroadcastReceiver? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        // SCREEN_OFF is only delivered to receivers registered at runtime.
+        val (receiver, filter) = LockscreenAds.screenOffReceiver()
+        registerReceiver(receiver, filter)
+        screenOff = receiver
+        LockscreenAds.block(this)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1, notification())
@@ -26,6 +37,8 @@ class ApiService : Service() {
     override fun onDestroy() {
         server?.stop()
         server = null
+        screenOff?.let(::unregisterReceiver)
+        screenOff = null
         super.onDestroy()
     }
 
