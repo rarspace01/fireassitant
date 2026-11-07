@@ -31,14 +31,31 @@ class GestureService : AccessibilityService() {
         ) {
             openedDashboard = null
         }
-        if (System.currentTimeMillis() > installArmedUntil) return
+        val now = System.currentTimeMillis()
+        val awaitingDone = now < Prefs.installDoneUntil(this)
+        if (now > installArmedUntil && !awaitingDone) return
         val root = rootInActiveWindow ?: return
         if (root.packageName?.toString() !in INSTALLER_PACKAGES) return
+        if (awaitingDone) {
+            // Final "App installed" dialog (DONE / OPEN). Tap DONE; the app restarts itself on MY_PACKAGE_REPLACED.
+            val done = DONE_BUTTON_IDS.firstNotNullOfOrNull { id ->
+                root.findAccessibilityNodeInfosByViewId(id).firstOrNull { it.isClickable }
+            } ?: DONE_BUTTON_TEXTS.firstNotNullOfOrNull { t ->
+                root.findAccessibilityNodeInfosByText(t).firstOrNull { it.isClickable && it.isEnabled }
+            }
+            if (done != null && done.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                Prefs.setInstallDoneUntil(this, 0)
+            }
+            return
+        }
+        if (now > installArmedUntil) return
         val button = INSTALL_BUTTON_IDS.firstNotNullOfOrNull { id ->
             root.findAccessibilityNodeInfosByViewId(id).firstOrNull { it.isClickable }
         } ?: root.findAccessibilityNodeInfosByText("Install").firstOrNull { it.isClickable && it.isEnabled }
         if (button != null && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
             installArmedUntil = 0
+            // The update replaces this process, so remember in prefs that the "App installed" dialog still needs DONE.
+            Prefs.setInstallDoneUntil(this, System.currentTimeMillis() + 3 * 60_000)
         }
     }
 
@@ -73,6 +90,12 @@ class GestureService : AccessibilityService() {
             "com.google.android.packageinstaller:id/ok_button",
             "android:id/button1",
         )
+
+        private val DONE_BUTTON_IDS = listOf(
+            "com.android.packageinstaller:id/done_button",
+            "com.google.android.packageinstaller:id/done_button",
+        )
+        private val DONE_BUTTON_TEXTS = listOf("Done", "Fertig")
 
         @Volatile
         private var installArmedUntil = 0L
