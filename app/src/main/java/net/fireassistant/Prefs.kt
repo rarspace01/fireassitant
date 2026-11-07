@@ -23,4 +23,11 @@ object Prefs {
         prefs(ctx).edit().remove("token").apply()
         return token(ctx)
     }
+
+    /** Until when the installer's "App installed" dialog should be dismissed with DONE (survives the app restart caused by the update). */
+    fun installDoneUntil(ctx: Context): Long = prefs(ctx).getLong("installDoneUntil", 0)
+
+    fun setInstallDoneUntil(ctx: Context, until: Long) {
+        prefs(ctx).edit().putLong("installDoneUntil", until).apply()
+    }
 }
