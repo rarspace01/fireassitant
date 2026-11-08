@@ -127,18 +127,7 @@ class Actions(context: Context) {
         if (clean.isEmpty()) return ActionResult(false, "missing 'path' parameter", 400)
         val pkg = haPackage() ?: return notInstalled()
 
-        val done = mutableListOf<String>()
-        if (!isScreenOn()) {
-            wake()
-            done += "screen woken"
-        }
-        if (!isUnlocked() && GestureService.isRunning) {
-            // Wait for the swipe so we can see what is behind the lock screen; if it doesn't
-            // work out, navigate anyway and the dashboard is there once the tablet is unlocked.
-            unlock()
-            if (waitUntilUnlocked(5_000)) done += "unlocked"
-        }
-
+        val done = wakeAndUnlock()
         if (isHomeAssistantInFront() && GestureService.currentDashboard() == clean) {
             return ActionResult(true, (done + "dashboard $clean already shown").joinToString(", "))
         }
@@ -149,6 +138,47 @@ class Actions(context: Context) {
         if (!result.ok) return result
         GestureService.openedDashboard = clean
         return ActionResult(true, (done + result.message).joinToString(", "))
+    }
+
+    /**
+     * Opens the Tapo app on one camera's live view, waking and unlocking first if needed.
+     * Uses the screen Tapo opens for a motion notification; TP-Link doesn't document it, so a
+     * Tapo update may break this. [deviceId] is the camera's Tapo cloud device ID.
+     */
+    fun openTapoCamera(deviceId: String): ActionResult {
+        val id = deviceId.trim()
+        if (id.isEmpty()) return ActionResult(false, "missing 'id' parameter", 400)
+        if (!DEVICE_ID.matches(id)) return ActionResult(false, "invalid 'id' parameter", 400)
+        if (!isInstalled(TAPO_PACKAGE)) return ActionResult(false, "Tapo app is not installed", 404)
+
+        val done = wakeAndUnlock()
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setComponent(ComponentName(TAPO_PACKAGE, TAPO_CAMERA_ACTIVITY))
+            .putExtra("deviceId", id)
+            .putExtra("msgType", "Motion")
+            .putExtra("hasCloudVideo", "false")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val result = start(intent, "opened Tapo camera $id")
+        if (!result.ok) return result
+        return ActionResult(true, (done + result.message).joinToString(", "))
+    }
+
+    /**
+     * Wakes the screen if it is off and swipes the lock screen away if it is showing, returning
+     * what was done. Waits for the swipe so the caller can see what is behind the lock screen; if
+     * it doesn't work out, callers go ahead anyway and their app is there once it is unlocked.
+     */
+    private fun wakeAndUnlock(): List<String> {
+        val done = mutableListOf<String>()
+        if (!isScreenOn()) {
+            wake()
+            done += "screen woken"
+        }
+        if (!isUnlocked() && GestureService.isRunning) {
+            unlock()
+            if (waitUntilUnlocked(5_000)) done += "unlocked"
+        }
+        return done
     }
 
     /** Only meaningful when unlocked: behind the lock screen the front app can't be seen. */
@@ -174,13 +204,13 @@ class Actions(context: Context) {
         }
     }
 
-    private fun haPackage(): String? = HA_PACKAGES.firstOrNull {
-        try {
-            ctx.packageManager.getPackageInfo(it, 0)
-            true
-        } catch (e: Exception) {
-            false
-        }
+    private fun haPackage(): String? = HA_PACKAGES.firstOrNull(::isInstalled)
+
+    private fun isInstalled(pkg: String) = try {
+        ctx.packageManager.getPackageInfo(pkg, 0)
+        true
+    } catch (e: Exception) {
+        false
     }
 
     private fun notInstalled() = ActionResult(false, "Home Assistant companion app is not installed", 404)
@@ -192,6 +222,10 @@ class Actions(context: Context) {
     companion object {
         private const val TAG = "FireAssistant"
         private val updating = AtomicBoolean(false)
+
+        const val TAPO_PACKAGE = "com.tplink.iot"
+        private const val TAPO_CAMERA_ACTIVITY = "com.tplink.iot.view.notification.NotificationClickActivity"
+        private val DEVICE_ID = Regex("[A-Za-z0-9_-]{1,128}")
 
         val HA_PACKAGES = listOf(
             "io.homeassistant.companion.android",

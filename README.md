@@ -14,6 +14,7 @@ Port `8765`. GET or POST. Authenticate with `Authorization: Bearer <token>` or `
 | `/api/update` | Install the newest GitHub release without any tapping (unlocks the screen, downloads the APK, confirms the installer) |
 | `/api/ha` | Open the Home Assistant companion app (no-op if already in front) |
 | `/api/ha/dashboard?path=lovelace/kitchen` | Show a dashboard, doing only what is missing: wakes the screen, unlocks, and navigates (`homeassistant://navigate/<path>`) unless Home Assistant is already showing that dashboard. Home Assistant doesn't need to be open first. |
+| `/api/tapo/camera?id=<device id>` | Open the Tapo app on one camera's live view, waking and unlocking first if needed (see [Tapo cameras](#tapo-cameras)) |
 
 Responses are JSON: `{"ok": true, "message": "..."}`. The message says what was done, e.g. `screen woken, unlocked, opened dashboard lovelace/kitchen` or `dashboard lovelace/kitchen already shown`.
 
@@ -24,7 +25,7 @@ To see which dashboard is showing, the accessibility service reads the URL of Ho
 1. Install the APK (`./gradlew assembleDebug` -> `app/build/outputs/apk/debug/app-debug.apk`, or `adb install`).
 2. Open the app and grant the three permissions it lists:
    - **Device admin**: only the force-lock policy; needed for `/api/sleep`.
-   - **Display over other apps**: needed to open Home Assistant from the background on Android 10+ (Fire OS 8).
+   - **Display over other apps**: needed to open Home Assistant or Tapo from the background on Android 10+ (Fire OS 8).
    - **Accessibility service**: swipes the lock screen away for `/api/unlock` (Fire OS doesn't let apps dismiss the keyguard directly), and checks which Home Assistant dashboard is in front so `/api/ha` and `/api/ha/dashboard` skip what is already done.
 3. Disable battery optimisation for the app. The server restarts on boot.
 4. Optional: hide the lock screen ads (see below).
@@ -77,6 +78,10 @@ rest_command:
     url: "http://192.168.1.141:8765/api/ha/dashboard?path={{ path }}"
     headers:
       Authorization: !secret fire_tablet_auth
+  fire_tablet_open_tapo_camera:
+    url: "http://192.168.1.141:8765/api/tapo/camera?id={{ id }}"
+    headers:
+      Authorization: !secret fire_tablet_auth
 ```
 
 Then call them from automations or scripts, e.g. show a dashboard when someone arrives. One call wakes, unlocks and navigates as needed, and leaves the tablet alone if the dashboard is already on screen:
@@ -87,6 +92,23 @@ action:
     data:
       path: lovelace/kitchen
 ```
+
+Or show the doorbell camera when someone rings:
+
+```yaml
+action:
+  - action: rest_command.fire_tablet_open_tapo_camera
+    data:
+      id: 802XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+
+## Tapo cameras
+
+`/api/tapo/camera?id=<device id>` opens the [Tapo app](https://www.tapo.com/) straight on a camera's live view. It uses the screen Tapo opens when you tap a motion notification (`com.tplink.iot/.view.notification.NotificationClickActivity`, with the extras `deviceId`, `msgType=Motion` and `hasCloudVideo=false`). TP-Link doesn't document this, so a Tapo update may break it. It needs the Tapo app installed and signed in, and "Display over other apps".
+
+The device ID is the camera's Tapo cloud ID, not its name or MAC address. The Tapo app doesn't show it. The [Tapo Control](https://github.com/JurajNyiri/HomeAssistant-Tapo-Control) integration for Home Assistant shows it in the device info, or you can use a lookup tool such as [tapo-device-id-lookup](https://github.com/danwig/tapo-device-id-lookup) (Windows, doesn't work with 2FA on the Tapo account).
+
+Unlike `/api/ha/dashboard`, this always opens the camera again even if it is already on screen, because there is no reliable way to tell which camera Tapo is showing.
 
 ## Releases
 

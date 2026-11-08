@@ -12,6 +12,7 @@ import java.security.MessageDigest
  *   /api/update
  *   /api/ha
  *   /api/ha/dashboard?path=lovelace/kitchen
+ *   /api/tapo/camera?id=<Tapo device ID>
  */
 class ApiServer(
     port: Int,
@@ -32,6 +33,7 @@ class ApiServer(
             "/api/update" -> actions.update()
             "/api/ha" -> actions.openHomeAssistant()
             "/api/ha/dashboard" -> actions.openDashboard(session.parameters["path"]?.firstOrNull().orEmpty())
+            "/api/tapo/camera" -> actions.openTapoCamera(session.parameters["id"]?.firstOrNull().orEmpty())
             else -> ActionResult(false, "not found", 404)
         }
         return json(result.httpStatus, result.ok, result.message)
