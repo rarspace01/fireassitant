@@ -99,14 +99,14 @@ Or show the doorbell camera when someone rings:
 action:
   - action: rest_command.fire_tablet_open_tapo_camera
     data:
-      id: 802XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      id: YOUR_CAMERA_DEVICE_ID
 ```
 
 ## Tapo cameras
 
 `/api/tapo/camera?id=<device id>` opens the [Tapo app](https://www.tapo.com/) straight on a camera's live view. It uses the screen Tapo opens when you tap a motion notification (`com.tplink.iot/.view.notification.NotificationClickActivity`, with the extras `deviceId`, `msgType=Motion` and `hasCloudVideo=false`). TP-Link doesn't document this, so a Tapo update may break it. It needs the Tapo app installed and signed in, and "Display over other apps".
 
-The device ID is the camera's Tapo cloud ID, not its name or MAC address. The Tapo app doesn't show it. The [Tapo Control](https://github.com/JurajNyiri/HomeAssistant-Tapo-Control) integration for Home Assistant shows it in the device info, or you can use a lookup tool such as [tapo-device-id-lookup](https://github.com/danwig/tapo-device-id-lookup) (Windows, doesn't work with 2FA on the Tapo account).
+The device ID is the camera's Tapo cloud ID, not its name or MAC address. The Tapo app doesn't show it. The [Tapo Control](https://github.com/JurajNyiri/HomeAssistant-Tapo-Control) integration for Home Assistant can show it, or you can use a lookup tool such as [tapo-device-id-lookup](https://github.com/danwig/tapo-device-id-lookup) (Windows, doesn't work with 2FA on the Tapo account).
 
 Unlike `/api/ha/dashboard`, this always opens the camera again even if it is already on screen, because there is no reliable way to tell which camera Tapo is showing.
 

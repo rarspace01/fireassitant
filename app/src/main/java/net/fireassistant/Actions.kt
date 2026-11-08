@@ -223,7 +223,7 @@ class Actions(context: Context) {
         private const val TAG = "FireAssistant"
         private val updating = AtomicBoolean(false)
 
-        const val TAPO_PACKAGE = "com.tplink.iot"
+        private const val TAPO_PACKAGE = "com.tplink.iot"
         private const val TAPO_CAMERA_ACTIVITY = "com.tplink.iot.view.notification.NotificationClickActivity"
         private val DEVICE_ID = Regex("[A-Za-z0-9_-]{1,128}")
 
