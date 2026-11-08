@@ -16,10 +16,11 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Package visibility (Android 11+) so we can detect the HA companion app -->
+    <!-- Package visibility (Android 11+) so we can detect the HA companion and Tapo apps -->
     <queries>
         <package android:name="io.homeassistant.companion.android" />
         <package android:name="io.homeassistant.companion.android.minimal" />
+        <package android:name="com.tplink.iot" />
     </queries>
 
     <application
