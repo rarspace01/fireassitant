@@ -21,9 +21,10 @@ import java.util.concurrent.TimeUnit
 class AdbPorts(context: Context, private val actions: Actions) {
     private val ctx = context.applicationContext
 
-    fun query(): JSONObject {
+    /** [openPairing] false skips the Settings automation (nothing is opened; code is null). */
+    fun query(openPairing: Boolean = true): JSONObject {
         // Opens the pairing dialog first so its mDNS service is up for the discovery below.
-        val pairing = actions.openAdbPairing()
+        val pairing = if (openPairing) actions.openAdbPairing() else Actions.PairingResult(GestureService.readPairing(), null)
         val tcp = prop("service.adb.tcp.port")?.takeIf { it > 0 }
         val tlsProp = prop("service.adb.tls.port")?.takeIf { it > 0 }
         val mdns = discover()

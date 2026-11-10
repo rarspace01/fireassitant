@@ -13,7 +13,7 @@ import java.security.MessageDigest
  *   /api/ha
  *   /api/ha/dashboard?path=lovelace/kitchen
  *   /api/tapo/camera?id=<Tapo device ID>
- *   /api/adb  -> {wireless_debugging, connect_port, pairing_port, pairing_code, tcp_port, pairing_error}; ports are null when unavailable
+ *   /api/adb[?pairing=false]  -> {wireless_debugging, connect_port, pairing_port, pairing_code, tcp_port, pairing_error}; ports are null when unavailable
  */
 class ApiServer(
     port: Int,
@@ -29,7 +29,7 @@ class ApiServer(
         if (!authorized(session)) return json(401, false, "unauthorized")
 
         if (session.uri.trimEnd('/') == "/api/adb") {
-            return newFixedLengthResponse(Response.Status.OK, "application/json", adbPorts.query().toString())
+            return newFixedLengthResponse(Response.Status.OK, "application/json", adbPorts.query(openPairing = !session.parameters["pairing"]?.firstOrNull().equals("false", ignoreCase = true)).toString())
         }
 
         val result = when (session.uri.trimEnd('/')) {
