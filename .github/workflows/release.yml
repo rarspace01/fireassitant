@@ -50,3 +50,12 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "fireassistant-${TAG}.apk"
           gh release create "$TAG" "fireassistant-${TAG}.apk" \
             --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+
+      - name: Delete old releases (keep latest 3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 1000 --json tagName --jq '.[3:][].tagName' |
+            while read -r tag; do
+              gh release delete "$tag" --yes --cleanup-tag
+            done
