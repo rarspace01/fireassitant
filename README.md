@@ -15,6 +15,7 @@ Port `8765`. GET or POST. Authenticate with `Authorization: Bearer <token>` or `
 | `/api/ha` | Open the Home Assistant companion app (no-op if already in front) |
 | `/api/ha/dashboard?path=lovelace/kitchen` | Show a dashboard, doing only what is missing: wakes the screen, unlocks, and navigates (`homeassistant://navigate/<path>`) unless Home Assistant is already showing that dashboard. Home Assistant doesn't need to be open first. |
 | `/api/tapo/camera?id=<device id>` | Open the Tapo app on one camera's live view, waking and unlocking first if needed (see [Tapo cameras](#tapo-cameras)) |
+| `/api/adb` | Report the ADB ports and pairing code as JSON: `connect_port` (wireless debugging), `pairing_port` and `pairing_code` (the "Pair device with pairing code" dialog), `tcp_port` (classic `adb tcpip`), `wireless_debugging` (on/off) and `pairing_error`. Every call opens Settings and the pairing dialog through the accessibility service and leaves it open, because the code and port are only valid while it is showing. Turns wireless debugging on if `WRITE_SECURE_SETTINGS` was granted. Unavailable values are `null`. Takes a few seconds. **Exposes a credential to anyone with the API token.** |
 
 Responses are JSON: `{"ok": true, "message": "..."}`. The message says what was done, e.g. `screen woken, unlocked, opened dashboard lovelace/kitchen` or `dashboard lovelace/kitchen already shown`.
 

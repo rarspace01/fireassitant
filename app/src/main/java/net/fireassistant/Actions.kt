@@ -163,6 +163,56 @@ class Actions(context: Context) {
         return ActionResult(true, (done + result.message).joinToString(", "))
     }
 
+    class PairingResult(val info: GestureService.Companion.PairingInfo?, val error: String?)
+
+    fun isWirelessDebuggingOn(): Boolean = try {
+        Settings.Global.getInt(ctx.contentResolver, "adb_wifi_enabled", 0) == 1
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Opens Settings > Developer options > Wireless debugging > "Pair device with pairing code"
+     * through the accessibility service and reads the code and port off the dialog. The dialog is
+     * left open: the port and code only stay valid while it is showing. Turns wireless debugging on
+     * first if WRITE_SECURE_SETTINGS was granted over ADB.
+     */
+    fun openAdbPairing(timeoutMs: Long = 12_000): PairingResult {
+        if (!GestureService.isRunning) {
+            return PairingResult(null, "accessibility service not enabled; open the app and enable it")
+        }
+        wakeAndUnlock()
+        GestureService.readPairing()?.let { return PairingResult(it, null) }
+        if (!isWirelessDebuggingOn()) {
+            try {
+                Settings.Global.putInt(ctx.contentResolver, "adb_wifi_enabled", 1)
+                Thread.sleep(1_500)
+            } catch (e: Exception) {
+                return PairingResult(null, "wireless debugging is off and cannot be enabled without WRITE_SECURE_SETTINGS (grant it over ADB)")
+            }
+        }
+        // Android 11+ opens the Wireless debugging page directly; otherwise start at Developer options.
+        val wifi = Intent("android.settings.ADB_WIFI_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = if (wifi.resolveActivity(ctx.packageManager) != null) wifi
+        else Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val started = start(intent, "")
+        if (!started.ok) return PairingResult(null, started.message)
+
+        val deadline = System.currentTimeMillis() + timeoutMs
+        var lastClick = 0L
+        while (System.currentTimeMillis() < deadline) {
+            GestureService.readPairing()?.let { return PairingResult(it, null) }
+            if (System.currentTimeMillis() - lastClick > 1_500) {
+                // Open the pairing dialog; from Developer options first enter the Wireless debugging page.
+                val clicked = GestureService.clickSettingsText("pairing code", "Kopplungscode") ||
+                    GestureService.clickSettingsText("Wireless debugging", "Drahtloses Debugging")
+                if (clicked) lastClick = System.currentTimeMillis()
+            }
+            Thread.sleep(300)
+        }
+        return PairingResult(null, "pairing dialog did not appear; is the tablet on Wi-Fi?")
+    }
+
     /**
      * Wakes the screen if it is off and swipes the lock screen away if it is showing, returning
      * what was done. Waits for the swipe so the caller can see what is behind the lock screen; if
