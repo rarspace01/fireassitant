@@ -13,11 +13,13 @@ import java.security.MessageDigest
  *   /api/ha
  *   /api/ha/dashboard?path=lovelace/kitchen
  *   /api/tapo/camera?id=<Tapo device ID>
+ *   /api/adb  -> {"wireless_debugging", "connect_port", "pairing_port", "tcp_port"}; ports are null when unavailable
  */
 class ApiServer(
     port: Int,
     private val token: String,
     private val actions: Actions,
+    private val adbPorts: AdbPorts,
 ) : NanoHTTPD(port) {
 
     override fun serve(session: IHTTPSession): Response {
@@ -25,6 +27,10 @@ class ApiServer(
             return json(405, false, "method not allowed")
         }
         if (!authorized(session)) return json(401, false, "unauthorized")
+
+        if (session.uri.trimEnd('/') == "/api/adb") {
+            return newFixedLengthResponse(Response.Status.OK, "application/json", adbPorts.query().toString())
+        }
 
         val result = when (session.uri.trimEnd('/')) {
             "/api/wake" -> actions.wake()

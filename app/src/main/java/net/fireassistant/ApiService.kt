@@ -27,7 +27,7 @@ class ApiService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1, notification())
         if (server == null) {
-            server = ApiServer(Prefs.PORT, Prefs.token(this), Actions(this)).also {
+            server = ApiServer(Prefs.PORT, Prefs.token(this), Actions(this), AdbPorts(this)).also {
                 it.start(5_000, false)
             }
         }

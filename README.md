@@ -15,6 +15,7 @@ Port `8765`. GET or POST. Authenticate with `Authorization: Bearer <token>` or `
 | `/api/ha` | Open the Home Assistant companion app (no-op if already in front) |
 | `/api/ha/dashboard?path=lovelace/kitchen` | Show a dashboard, doing only what is missing: wakes the screen, unlocks, and navigates (`homeassistant://navigate/<path>`) unless Home Assistant is already showing that dashboard. Home Assistant doesn't need to be open first. |
 | `/api/tapo/camera?id=<device id>` | Open the Tapo app on one camera's live view, waking and unlocking first if needed (see [Tapo cameras](#tapo-cameras)) |
+| `/api/adb` | Report the ADB ports as JSON: `connect_port` (wireless debugging), `pairing_port` (only while the "Pair device with pairing code" dialog is open), `tcp_port` (classic `adb tcpip`), and `wireless_debugging` (on/off). Unavailable ports are `null`. Takes ~3 s because it browses mDNS. |
 
 Responses are JSON: `{"ok": true, "message": "..."}`. The message says what was done, e.g. `screen woken, unlocked, opened dashboard lovelace/kitchen` or `dashboard lovelace/kitchen already shown`.
 

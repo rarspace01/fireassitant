@@ -92,7 +92,7 @@ class MainActivity : Activity() {
         val token = Prefs.token(this)
         info.text = "Fire Assistant API\n\n$base\nToken: $token\n\n" +
             "curl -H 'Authorization: Bearer $token' $base/api/wake\n\n" +
-            "Endpoints: /api/wake, /api/sleep, /api/unlock, /api/ha, /api/ha/dashboard?path=lovelace/kitchen, /api/tapo/camera?id=<device id>\n"
+            "Endpoints: /api/wake, /api/sleep, /api/unlock, /api/ha, /api/ha/dashboard?path=lovelace/kitchen, /api/tapo/camera?id=<device id>, /api/adb\n"
 
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         adminStatus.text = status("Device admin", dpm.isAdminActive(Actions.adminComponent(this)))
