@@ -13,7 +13,7 @@ import java.security.MessageDigest
  *   /api/ha
  *   /api/ha/dashboard?path=lovelace/kitchen
  *   /api/tapo/camera?id=<Tapo device ID>
- *   /api/adb  -> {"wireless_debugging", "connect_port", "pairing_port", "tcp_port"}; ports are null when unavailable
+ *   /api/adb  -> {wireless_debugging, connect_port, pairing_port, pairing_code, tcp_port, pairing_error}; ports are null when unavailable
  */
 class ApiServer(
     port: Int,

@@ -3,7 +3,6 @@ package net.fireassistant
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.provider.Settings
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -14,27 +13,27 @@ import java.util.concurrent.TimeUnit
  *
  * - `connect_port`: the wireless-debugging port (changes on every toggle/reboot). Read from the
  *   `service.adb.tls.port` system property, falling back to mDNS (`_adb-tls-connect._tcp`).
- * - `pairing_port`: only exists while the "Pair device with pairing code" dialog is open; found via
- *   mDNS (`_adb-tls-pairing._tcp`), otherwise null.
+ * - `pairing_port` / `pairing_code`: only exist while the "Pair device with pairing code" dialog is
+ *   open, so every query opens it through [Actions.openAdbPairing] and reads both off the dialog
+ *   (port falls back to mDNS `_adb-tls-pairing._tcp`). `pairing_error` says why they are null.
  * - `tcp_port`: the classic `adb tcpip <port>` port (`service.adb.tcp.port`), null when unset.
  */
-class AdbPorts(context: Context) {
+class AdbPorts(context: Context, private val actions: Actions) {
     private val ctx = context.applicationContext
 
     fun query(): JSONObject {
+        // Opens the pairing dialog first so its mDNS service is up for the discovery below.
+        val pairing = actions.openAdbPairing()
         val tcp = prop("service.adb.tcp.port")?.takeIf { it > 0 }
         val tlsProp = prop("service.adb.tls.port")?.takeIf { it > 0 }
         val mdns = discover()
-        val wirelessEnabled = try {
-            Settings.Global.getInt(ctx.contentResolver, "adb_wifi_enabled", 0) == 1
-        } catch (_: Exception) {
-            false
-        }
         return JSONObject()
             .put("ok", true)
-            .put("wireless_debugging", wirelessEnabled)
+            .put("wireless_debugging", actions.isWirelessDebuggingOn())
             .put("connect_port", tlsProp ?: mdns[CONNECT] ?: JSONObject.NULL)
-            .put("pairing_port", mdns[PAIRING] ?: JSONObject.NULL)
+            .put("pairing_port", pairing.info?.port ?: mdns[PAIRING] ?: JSONObject.NULL)
+            .put("pairing_code", pairing.info?.code ?: JSONObject.NULL)
+            .put("pairing_error", pairing.error ?: JSONObject.NULL)
             .put("tcp_port", tcp ?: JSONObject.NULL)
     }
 

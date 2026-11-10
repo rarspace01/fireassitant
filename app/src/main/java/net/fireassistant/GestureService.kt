@@ -9,7 +9,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 /**
- * Swipes up on the lock screen, reports which Home Assistant dashboard is showing, and taps "Install" in the system package installer while an
+ * Swipes up on the lock screen, reads the ADB pairing dialog in Settings (see [readPairing]), reports which Home Assistant dashboard is showing, and taps "Install" in the system package installer while an
  * update started by /api/update or the app's update button is pending (see [armInstall]). Fire OS blocks keyguard dismissal for third-party
  * apps, so a swipe is the only way past the "Special Offers" (ad-supported) lock screen.
  */
@@ -147,6 +147,59 @@ class GestureService : AccessibilityService() {
             }
             return null
         }
+
+        /** Pairing code and (when shown) IP:port read from the Wireless debugging pairing dialog. */
+        class PairingInfo(val code: String, val port: Int?)
+
+        /** The pairing dialog's code and port if it is the window in front, else null. */
+        fun readPairing(): PairingInfo? = try {
+            instance?.rootInActiveWindow?.takeIf { it.packageName?.toString() == SETTINGS_PACKAGE }?.let(::parsePairing)
+        } catch (e: Exception) {
+            null
+        }
+
+        /**
+         * Taps the first enabled, clickable row of the Settings window in front whose text contains
+         * one of [needles] (case-insensitive substring). False if Settings isn't in front or nothing matched.
+         */
+        fun clickSettingsText(vararg needles: String): Boolean = try {
+            val root = instance?.rootInActiveWindow
+            if (root == null || root.packageName?.toString() != SETTINGS_PACKAGE) {
+                false
+            } else {
+                needles.any { needle ->
+                    root.findAccessibilityNodeInfosByText(needle).any { node ->
+                        var cur: AccessibilityNodeInfo? = node
+                        var depth = 0
+                        while (cur != null && depth++ < 6 && !(cur.isClickable && cur.isEnabled)) cur = cur.parent
+                        cur != null && cur.isClickable && cur.isEnabled && cur.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            false
+        }
+
+        private fun parsePairing(root: AccessibilityNodeInfo): PairingInfo? {
+            val texts = ArrayList<String>()
+            val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
+            var visited = 0
+            while (queue.isNotEmpty() && visited++ < MAX_NODES) {
+                val node = queue.removeFirst()
+                node.text?.toString()?.let(texts::add)
+                for (i in 0 until node.childCount) node.getChild(i)?.let(queue::add)
+            }
+            // The settings row that opens the dialog carries the same label, so also require the digits.
+            if (texts.none { t -> PAIRING_LABELS.any { t.contains(it, ignoreCase = true) } }) return null
+            val code = texts.firstOrNull { PAIRING_CODE.matches(it.trim()) }?.trim() ?: return null
+            val port = texts.firstNotNullOfOrNull { ENDPOINT.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+            return PairingInfo(code, port)
+        }
+
+        private const val SETTINGS_PACKAGE = "com.android.settings"
+        private val PAIRING_LABELS = listOf("pairing code", "Kopplungscode")
+        private val PAIRING_CODE = Regex("\\d{6}")
+        private val ENDPOINT = Regex("\\d{1,3}(?:\\.\\d{1,3}){3}:(\\d{2,5})")
 
         private const val MAX_NODES = 300
     }
