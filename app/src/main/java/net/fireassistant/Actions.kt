@@ -144,6 +144,9 @@ class Actions(context: Context) {
      * Opens the Tapo app on one camera's live view, waking and unlocking first if needed.
      * Uses the screen Tapo opens for a motion notification; TP-Link doesn't document it, so a
      * Tapo update may break this. [deviceId] is the camera's Tapo cloud device ID.
+     *
+     * The Tapo task is cleared first: otherwise a live view left open (e.g. across /api/sleep)
+     * is just brought back to front with its stream frozen instead of reconnecting.
      */
     fun openTapoCamera(deviceId: String): ActionResult {
         val id = deviceId.trim()
@@ -157,7 +160,7 @@ class Actions(context: Context) {
             .putExtra("deviceId", id)
             .putExtra("msgType", "Motion")
             .putExtra("hasCloudVideo", "false")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         val result = start(intent, "opened Tapo camera $id")
         if (!result.ok) return result
         return ActionResult(true, (done + result.message).joinToString(", "))
