@@ -107,6 +107,8 @@ class GestureService : AccessibilityService() {
 
         fun swipeUnlock(): Boolean = instance?.swipeUp() ?: false
 
+        fun pressBack(): Boolean = instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) ?: false
+
         /**
          * Dashboard path last opened through the API, cleared when someone taps inside Home
          * Assistant. Fallback for [currentDashboard] when the WebView doesn't expose its URL.
