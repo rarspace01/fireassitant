@@ -145,8 +145,9 @@ class Actions(context: Context) {
      * Uses the screen Tapo opens for a motion notification; TP-Link doesn't document it, so a
      * Tapo update may break this. [deviceId] is the camera's Tapo cloud device ID.
      *
-     * The Tapo task is cleared first: otherwise a live view left open (e.g. across /api/sleep)
-     * is just brought back to front with its stream frozen instead of reconnecting.
+     * A live view left open (e.g. across /api/sleep) freezes, and opening the camera again only
+     * brings that frozen screen back. So, as a person would, leave it with Back and open the
+     * camera again: if Tapo isn't in front yet, open the camera first to find out what it shows.
      */
     fun openTapoCamera(deviceId: String): ActionResult {
         val id = deviceId.trim()
@@ -160,7 +161,19 @@ class Actions(context: Context) {
             .putExtra("deviceId", id)
             .putExtra("msgType", "Motion")
             .putExtra("hasCloudVideo", "false")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (GestureService.isRunning && isUnlocked()) {
+            if (!isTapoInFront()) {
+                val first = start(intent, "")
+                if (!first.ok) return first
+                // Let the trampoline hand over to the live view before pressing Back on it.
+                if (waitFor(5_000, ::isTapoInFront)) Thread.sleep(1_500)
+            }
+            if (isTapoInFront() && GestureService.pressBack()) {
+                done += "closed old live view"
+                Thread.sleep(1_000)
+            }
+        }
         val result = start(intent, "opened Tapo camera $id")
         if (!result.ok) return result
         return ActionResult(true, (done + result.message).joinToString(", "))
@@ -221,7 +234,7 @@ class Actions(context: Context) {
      * what was done. Waits for the swipe so the caller can see what is behind the lock screen; if
      * it doesn't work out, callers go ahead anyway and their app is there once it is unlocked.
      */
-    private fun wakeAndUnlock(): List<String> {
+    private fun wakeAndUnlock(): MutableList<String> {
         val done = mutableListOf<String>()
         if (!isScreenOn()) {
             wake()
@@ -238,11 +251,16 @@ class Actions(context: Context) {
     private fun isHomeAssistantInFront() =
         isUnlocked() && GestureService.foregroundPackage() in HA_PACKAGES
 
+    private fun isTapoInFront() = isUnlocked() && GestureService.foregroundPackage() == TAPO_PACKAGE
+
     /** Polls the lock screen; true once it is gone and the screen is on. */
-    private fun waitUntilUnlocked(timeoutMs: Long): Boolean {
+    private fun waitUntilUnlocked(timeoutMs: Long): Boolean = waitFor(timeoutMs, ::isUnlocked)
+
+    /** Polls [condition] every 250 ms until it holds or [timeoutMs] passes; returns its last value. */
+    private fun waitFor(timeoutMs: Long, condition: () -> Boolean): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
-        while (!isUnlocked() && System.currentTimeMillis() < deadline) Thread.sleep(250)
-        return isUnlocked()
+        while (!condition() && System.currentTimeMillis() < deadline) Thread.sleep(250)
+        return condition()
     }
 
     private fun start(intent: Intent, okMessage: String): ActionResult {
